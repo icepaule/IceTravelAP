@@ -1,5 +1,5 @@
 # IceTravelAP — Claude Code Implementierungs-Prompt
-
+![IceTravelAP Systemablauf](icetravelap_ablaufbeschreibung.svg)
 Systemablauf
 1. Boot & Hotspot-Start
 Beim Einschalten startet IceTravelAP sofort den eigenen Hotspot „IceTravelAP" auf dem internen WLAN-Interface (wlan0). Dieser bleibt während des gesamten Betriebs aktiv — unabhängig davon, ob und wie der Pi eine Uplink-Verbindung hat. Clients können sich also jederzeit verbinden.
