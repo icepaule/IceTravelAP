@@ -1,6 +1,20 @@
-# IceTravelAP
-
 # IceTravelAP — Claude Code Implementierungs-Prompt
+
+Systemablauf
+1. Boot & Hotspot-Start
+Beim Einschalten startet IceTravelAP sofort den eigenen Hotspot „IceTravelAP" auf dem internen WLAN-Interface (wlan0). Dieser bleibt während des gesamten Betriebs aktiv — unabhängig davon, ob und wie der Pi eine Uplink-Verbindung hat. Clients können sich also jederzeit verbinden.
+2. Uplink: Bekannte Netzwerke
+Parallel dazu scannt der USB-WLAN-Adapter (wlan1) die Umgebung nach bekannten SSIDs aus der Datei known_networks.conf. Wird ein bekanntes Netz gefunden, verbindet sich der Pi automatisch und ohne Benutzereingriff.
+3. Fallback: Setup-Modus
+Ist kein bekanntes Netz in Reichweite, wechselt IceTravelAP in den Setup-Modus: Auf wlan1 wird ein temporärer Setup-AP „IceTravelAP-Setup" aufgebaut. Wer sich dort einloggt, erreicht über http://192.168.99.1:8080 ein Web-Portal mit einer aktuellen Scan-Liste aller sichtbaren WLANs. Nach Auswahl und Eingabe des Passworts verbindet sich der Pi — optional wird das Netz dauerhaft in known_networks.conf gespeichert.
+4. WireGuard-Tunnel
+Nach erfolgreicher WLAN-Verbindung (ob automatisch oder über das Portal) startet der WireGuard-Client. Er baut einen verschlüsselten UDP-Tunnel zum WireGuard-Server im Heimnetz in Deutschland auf. Ab diesem Moment läuft sämtlicher Traffic der verbundenen Hotspot-Clients durch diesen Tunnel — alle Verbindungen erscheinen mit der deutschen IP-Adresse. SIP/VoIP, Provider-Sperren und Geoblocking greifen nicht mehr.
+Schlägt der Tunnel-Aufbau fehl (z. B. bei temporären DNS-Problemen), bleibt der Hotspot aktiv und eine Warnung erscheint auf dem Display. Der Betrieb läuft weiter, sobald WireGuard sich reconnectet.
+5. Normalbetrieb
+Im Normalbetrieb arbeitet IceTravelAP vollständig headless und lautlos: wlan1 hält die Uplink-Verbindung, wg0 tunnelt alles nach Deutschland, wlan0 verteilt den Internet-Zugang als gesicherter Hotspot an alle verbundenen Geräte.
+6. OLED-Display
+Das angeschlossene 128×64-Display zeigt parallel zum Betrieb den aktuellen Status an — wechselnd zwischen zwei Ansichten: Live-Traffic (Verbindungsstatus, Tunnel, verbundene Clients, Upload/Download-Geschwindigkeit) und Systeminfo (Gesamttraffic seit Start, RAM-Auslastung, Uhrzeit).
+Im Setup-Modus zeigt das Display SSID und Passwort des Setup-APs sowie die Portal-Adresse.
 
 > **Verwendung:** Dieses Dokument vollständig als Prompt an eine lokale Claude Code Instanz übergeben.
 > `claude < IceTravelAP_ClaudeCode_Prompt.md` oder als Kontext-Datei einlesen.
