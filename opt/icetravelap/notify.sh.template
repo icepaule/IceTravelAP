@@ -1,0 +1,79 @@
+#!/bin/bash
+# Pushover notification on tunnel up
+EVENT="$1"
+EXTRA="$2"
+PUSHOVER_USER="__PUSHOVER_USER__"
+PUSHOVER_TOKEN="__PUSHOVER_TOKEN__"
+LOG="/var/log/icetravelap/notify.log"
+
+log() { echo "$(date '+%Y-%m-%d %H:%M:%S') $1" >> "$LOG"; }
+
+# Gather context
+HOSTNAME=$(hostname)
+WG_IP=$(ip -4 -br addr show wg0 2>/dev/null | awk '{print $3}' | cut -d/ -f1)
+LAN_IP=$(ip -4 -br addr show eth0 2>/dev/null | awk '{print $3}' | cut -d/ -f1)
+HOTSPOT_IP=$(ip -4 -br addr show wlan0 2>/dev/null | awk '{print $3}' | cut -d/ -f1)
+WLAN_SSID=$(iw dev wlan1 link 2>/dev/null | grep SSID | sed 's/.*SSID: //')
+
+# Determine upstream
+UPSTREAM=""
+if ip route get 8.8.8.8 2>/dev/null | grep -q "dev eth0"; then
+    UPSTREAM="LAN ($LAN_IP)"
+elif [ -n "$WLAN_SSID" ]; then
+    UPSTREAM="WLAN ($WLAN_SSID)"
+fi
+
+# Connected clients
+CLIENT_COUNT=$(iw dev wlan0 station dump 2>/dev/null | grep -c "^Station ")
+CLIENTS=""
+if [ "$CLIENT_COUNT" -gt 0 ]; then
+    while IFS= read -r mac; do
+        ip=""
+        name=""
+        if [ -f /var/lib/misc/dnsmasq.leases ]; then
+            line=$(grep -i " $mac " /var/lib/misc/dnsmasq.leases | head -1)
+            if [ -n "$line" ]; then
+                ip=$(echo "$line" | awk '{print $3}')
+                name=$(echo "$line" | awk '{print $4}')
+                [ "$name" = "*" ] && name=""
+            fi
+        fi
+        [ -z "$ip" ] && ip="?"
+        [ -z "$name" ] && name="(kein Name)"
+        CLIENTS="${CLIENTS}\n• ${name} - ${ip} [${mac}]"
+    done < <(iw dev wlan0 station dump 2>/dev/null | grep "^Station " | awk '{print $2}')
+fi
+
+# Public IP via tunnel
+PUB_IP=$(curl -s -m 5 --interface wg0 https://api.ipify.org 2>/dev/null)
+
+case "$EVENT" in
+    tunnel-up)
+        TITLE="🟢 IceTravelAP Tunnel UP"
+        MSG="Host: ${HOSTNAME}\nUpstream: ${UPSTREAM}\nTunnel-IP: ${WG_IP}\nÖffentliche IP: ${PUB_IP:-?}\n\nClients (${CLIENT_COUNT}):${CLIENTS}"
+        ;;
+    *)
+        TITLE="IceTravelAP $EVENT"
+        MSG="${EXTRA:-No details}"
+        ;;
+esac
+
+# URL: prefer tunnel IP (reachable from home via WG), fallback to LAN
+URL_IP="${WG_IP:-${LAN_IP:-$HOTSPOT_IP}}"
+URL="http://${URL_IP}:8080/"
+
+response=$(curl -s --max-time 10 \
+    --form-string "token=${PUSHOVER_TOKEN}" \
+    --form-string "user=${PUSHOVER_USER}" \
+    --form-string "title=${TITLE}" \
+    --form-string "message=$(echo -e "$MSG")" \
+    --form-string "url=${URL}" \
+    --form-string "url_title=Portal öffnen" \
+    --form-string "priority=0" \
+    https://api.pushover.net/1/messages.json 2>&1)
+
+if echo "$response" | grep -q '"status":1'; then
+    log "Sent: $TITLE -> $URL"
+else
+    log "FAILED: $response"
+fi

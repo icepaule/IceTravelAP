@@ -1,0 +1,13 @@
+[Unit]
+Description=IceTravelAP VNC for Remote Troubleshooting
+After=graphical.target
+
+[Service]
+Type=simple
+User=root
+ExecStart=/opt/icetravelap/vnc.sh
+Restart=on-failure
+RestartSec=10
+
+[Install]
+WantedBy=graphical.target

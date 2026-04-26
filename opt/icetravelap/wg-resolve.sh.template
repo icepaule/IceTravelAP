@@ -1,0 +1,26 @@
+#!/bin/bash
+# Robust DDNS resolver - tries multiple public DNS servers, updates wg0.conf endpoint
+HOST=__DDNS_HOSTNAME__
+PORT=51820
+LOG=/var/log/icetravelap/wg-resolve.log
+
+resolve() {
+    local dns="$1"
+    dig +short +time=2 +tries=1 @"$dns" "$HOST" A 2>/dev/null | grep -oE '^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+' | head -1
+}
+
+IP=""
+for DNS_SRV in 1.1.1.1 8.8.8.8 9.9.9.9 1.0.0.1; do
+    IP=$(resolve "$DNS_SRV")
+    [ -n "$IP" ] && break
+done
+
+# Last resort: system resolver
+[ -z "$IP" ] && IP=$(getent ahostsv4 "$HOST" 2>/dev/null | awk 'NR==1 {print $1}')
+
+if [ -n "$IP" ]; then
+    sed -i "s|^Endpoint = .*|Endpoint = $IP:$PORT|" /etc/wireguard/wg0.conf
+    echo "$(date '+%Y-%m-%d %H:%M:%S') Endpoint -> $IP" >> "$LOG"
+else
+    echo "$(date '+%Y-%m-%d %H:%M:%S') FAILED to resolve $HOST - keeping existing endpoint" >> "$LOG"
+fi

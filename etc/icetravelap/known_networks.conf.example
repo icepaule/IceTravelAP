@@ -1,0 +1,4 @@
+# Format: SSID|Password (one per line)
+# Lines starting with # are ignored
+# HotelWiFi|hotel1234
+# MyHomeWifi|secretpass

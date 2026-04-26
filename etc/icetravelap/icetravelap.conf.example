@@ -1,0 +1,8 @@
+# IceTravelAP main config - sourced by wifi-manager.sh
+# Hotspot for users
+HOTSPOT_SSID="IceTravelAP"
+HOTSPOT_PSK="changeme-min-8-chars"
+
+# Fallback AP shown when no known network is reachable
+SETUP_AP_SSID="IceTravelAP-Setup"
+SETUP_AP_PSK="changeme-min-8-chars"

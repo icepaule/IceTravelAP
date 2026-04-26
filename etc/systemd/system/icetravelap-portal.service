@@ -1,0 +1,14 @@
+[Unit]
+Description=IceTravelAP Web Portal
+After=network.target
+Wants=network.target
+
+[Service]
+Type=simple
+User=pi
+ExecStart=/usr/bin/python3 /opt/icetravelap/portal.py
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target
